@@ -1,0 +1,50 @@
+{
+  "name": "peeknote",
+  "version": "0.1.0",
+  "description": "A Windows edge-triggered floating notes and todo panel.",
+  "main": "src/main.js",
+  "author": "jyfdexh",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "smoke": "node scripts/smoke.js",
+    "self-test": "electron . --self-test",
+    "pack": "electron-builder --win --dir",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.jyfdexh.peeknote",
+    "productName": "PeekNote",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "PeekNote-${version}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PeekNote"
+    }
+  },
+  "devDependencies": {
+    "electron": "^39.8.5",
+    "electron-builder": "^26.8.1"
+  }
+}

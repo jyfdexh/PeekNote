@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PeekNote</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" class="app compact" data-theme="dark" data-style="glass" aria-label="PeekNote">
+      <section class="compact-bar" id="compactBar" title="移入展开">
+        <span class="micro-signal"></span>
+      </section>
+
+      <section class="drawer" id="drawer">
+        <div class="resize-handle resize-handle-n" data-resize-edge="top"></div>
+        <div class="resize-handle resize-handle-e" data-resize-edge="right"></div>
+        <div class="resize-handle resize-handle-s" data-resize-edge="bottom"></div>
+        <div class="resize-handle resize-handle-w" data-resize-edge="left"></div>
+        <div class="resize-handle resize-handle-ne" data-resize-edge="top-right"></div>
+        <div class="resize-handle resize-handle-se" data-resize-edge="bottom-right"></div>
+        <div class="resize-handle resize-handle-sw" data-resize-edge="bottom-left"></div>
+        <div class="resize-handle resize-handle-nw" data-resize-edge="top-left"></div>
+        <header class="topbar">
+          <div class="tabs" id="tabs"></div>
+          <div class="toolbar">
+            <button class="icon-button" id="addTab" title="新增便签">+</button>
+            <button class="icon-button" id="pinToggle" title="置顶" aria-label="置顶">
+              <svg class="pin-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 3h6l-1 5 4 4v2H6v-2l4-4-1-5Z"></path>
+                <path d="M12 14v7"></path>
+              </svg>
+            </button>
+            <button class="icon-button" id="settingsToggle" title="设置">⚙</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <div class="editor-shell">
+            <div class="title-row">
+              <input class="note-title" id="noteTitle" placeholder="标题" />
+            </div>
+
+            <div class="note-stage">
+              <article id="richEditor" class="rich-editor" contenteditable="true" spellcheck="false" aria-label="Markdown 实时编辑器"></article>
+            </div>
+
+            <div class="formatbar">
+              <button data-insert="- [ ] " title="插入待办">☑</button>
+              <button data-block="h1" title="一级标题">H1</button>
+              <button data-block="h2" title="二级标题">H2</button>
+              <button data-wrap="**" title="加粗">B</button>
+              <button data-wrap="*" title="斜体">I</button>
+              <button data-wrap="~~" title="删除线">S</button>
+              <button data-insert="`code`" title="行内代码">&lt;&gt;</button>
+              <button data-block="ul" title="无序列表">•</button>
+              <button data-block="ol" title="有序列表">1.</button>
+              <button data-block="quote" title="引用">&gt;</button>
+              <button data-block="code" title="代码块">```</button>
+              <button data-block="hr" title="分隔线">—</button>
+              <button data-insert="[link](https://)" title="链接">🔗</button>
+              <button data-insert="![图片](https://)" title="图片">▧</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-menu" id="tabMenu" role="menu" aria-hidden="true">
+          <button id="renameTab" type="button">重命名</button>
+          <button id="removeTab" type="button">删除</button>
+        </div>
+
+        <section class="settings-panel" id="settingsPanel" aria-hidden="true">
+          <div class="settings-head">
+            <strong>设置</strong>
+            <button class="icon-button" id="closeSettings" title="关闭">×</button>
+          </div>
+
+          <div class="settings-block">
+            <span class="setting-label">主题</span>
+            <div class="segmented wide" id="themeGroup">
+              <button data-theme-value="dark" type="button">深色</button>
+              <button data-theme-value="light" type="button">浅色</button>
+              <button data-theme-value="system" type="button">跟随</button>
+            </div>
+          </div>
+
+          <div class="settings-block">
+            <span class="setting-label">界面质感</span>
+            <div class="segmented wide" id="styleGroup">
+              <button data-style-value="glass" type="button">毛玻璃</button>
+              <button data-style-value="solid" type="button">实色</button>
+            </div>
+            <label class="nested-range">
+              <span>透明度 <output id="glassOpacityValue"></output></span>
+              <input id="glassOpacity" type="range" min="10" max="50" step="5" />
+            </label>
+          </div>
+
+          <label>
+            <span>触发宽度 <output id="compactWidthValue"></output></span>
+            <input id="compactWidth" type="range" min="44" max="800" step="4" />
+          </label>
+          <label class="check-row">
+            <input id="showTriggerDebug" type="checkbox" />
+            <span>显示触发区域</span>
+          </label>
+          <label>
+            <span>展开宽度 <output id="expandedWidthValue"></output></span>
+            <input id="expandedWidth" type="range" min="460" max="1200" step="8" />
+          </label>
+          <label>
+            <span>展开高度 <output id="expandedHeightValue"></output></span>
+            <input id="expandedHeight" type="range" min="340" max="1200" step="8" />
+          </label>
+          <label>
+            <span>顶部偏移 <output id="topOffsetValue"></output></span>
+            <input id="topOffset" type="range" min="0" max="300" step="2" />
+          </label>
+
+          <label>
+            <span>鼠标离开后收起 <output id="collapseDelayValue"></output></span>
+            <input id="collapseDelay" type="range" min="0" max="5000" step="50" />
+          </label>
+          <div class="delay-presets">
+            <button data-delay="0" type="button">秒关</button>
+            <button data-delay="350" type="button">快速</button>
+            <button data-delay="1200" type="button">1.2s</button>
+            <button data-delay="3000" type="button">3s</button>
+          </div>
+
+          <label>
+            <span>快捷键</span>
+            <input id="shortcutInput" class="text-input" type="text" placeholder="Ctrl+Alt+Space" />
+          </label>
+          <p class="hint" id="shortcutStatus"></p>
+
+          <label class="check-row">
+            <input id="launchAtLogin" type="checkbox" />
+            <span>开机启动</span>
+          </label>
+        </section>
+      </section>
+    </main>
+
+    <script src="./shared.js"></script>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
