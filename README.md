@@ -2,7 +2,7 @@
 
 PeekNote 是一个 Windows 边缘触发的悬浮笔记与待办面板。它平时隐藏在屏幕边缘，鼠标移到触发区域或按下快捷键后展开，适合快速记录待办、便签、Markdown 内容和临时想法。
 
-![PeekNote 示例界面](assets/peeknote-screenshot.png)
+![PeekNote 产品海报](assets/peeknote-poster-screen-dominant.png)
 
 ## 功能特性
 
