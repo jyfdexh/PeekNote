@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, shell, globalShortcut, nativeTheme } = require("electron");
 const fs = require("fs");
+const net = require("net");
 const path = require("path");
 const shared = require("./shared");
 
@@ -25,9 +26,11 @@ const CHANNELS = {
 };
 
 let win;
+let singleInstanceServer;
 let triggerDebugWin;
 let tray;
 let store = shared.createDefaultStore();
+let storeLoaded = false;
 let mode = "compact";
 let collapseTimer;
 let saveTimer;
@@ -51,6 +54,74 @@ if (isSelfTest || isCaptureTest) {
   app.setPath("userData", path.join(app.getPath("temp"), "peeknote-self-test"));
 }
 const hasSingleInstanceLock = isSelfTest || isCaptureTest || app.requestSingleInstanceLock();
+
+function singleInstancePipePath() {
+  if (process.platform === "win32") return "\\\\.\\pipe\\peeknote-single-instance";
+  return path.join(app.getPath("temp"), "peeknote-single-instance.sock");
+}
+
+function handleExternalInstanceSignal() {
+  if (!win || win.isDestroyed()) {
+    pendingShowOptions = { focus: true };
+    return;
+  }
+  setWindowMode("expanded", { focus: true, active: true });
+}
+
+function notifyExistingInstance(done = () => {}) {
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    done();
+  };
+
+  try {
+    const client = net.createConnection(singleInstancePipePath(), () => {
+      client.end("show");
+    });
+    client.on("error", finish);
+    client.on("close", finish);
+    client.setTimeout(250, () => {
+      client.destroy();
+      finish();
+    });
+  } catch {
+    finish();
+  }
+}
+
+function acquireAppInstanceGuard() {
+  if (isSelfTest || isCaptureTest) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = (value) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const server = net.createServer((socket) => {
+      socket.on("error", () => {});
+      socket.resume();
+      handleExternalInstanceSignal();
+    });
+
+    server.on("error", (error) => {
+      if (error && error.code === "EADDRINUSE") {
+        notifyExistingInstance(() => settle(false));
+        return;
+      }
+      settle(true);
+    });
+
+    server.listen(singleInstancePipePath(), () => {
+      singleInstanceServer = server;
+      settle(true);
+    });
+  });
+}
 
 function loginItemOptions(openAtLogin = true) {
   const options = {
@@ -93,6 +164,7 @@ function loadStoreFromDisk() {
   } catch {
     store = shared.createDefaultStore();
   }
+  storeLoaded = true;
 }
 
 function saveStoreSoon() {
@@ -101,6 +173,7 @@ function saveStoreSoon() {
 }
 
 function saveStoreNow() {
+  if (!storeLoaded) return;
   const file = storePath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(shared.normalizeStore(store), null, 2), "utf8");
@@ -638,6 +711,8 @@ function setPinned(pinned) {
 }
 
 function createWindow() {
+  if (win && !win.isDestroyed()) return win;
+
   win = new BrowserWindow({
     ...boundsFor("compact"),
     frame: false,
@@ -673,8 +748,12 @@ function createWindow() {
     if (url !== win.webContents.getURL()) event.preventDefault();
   });
   win.on("blur", collapseForExternalIntent);
+  win.on("closed", () => {
+    win = null;
+  });
   win.once("ready-to-show", () => {
-    setWindowMode("compact");
+    const shouldExpand = pendingShowOptions && pendingShowOptions.focus;
+    setWindowMode(shouldExpand ? "expanded" : "compact", pendingShowOptions || {});
     if (isSelfTest) setTimeout(() => app.quit(), 500);
     if (isCaptureTest) {
       setTimeout(async () => {
@@ -779,20 +858,26 @@ function registerIpc() {
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
-  app.whenReady().then(() => {
-  loadStoreFromDisk();
-  refreshLaunchAtLoginSetting();
-  registerIpc();
-  createWindow();
-  createTray();
-  registerConfiguredShortcut();
-  startMousePolling();
+  app.on("second-instance", handleExternalInstanceSignal);
+  app.whenReady().then(async () => {
+    const hasAppInstanceGuard = await acquireAppInstanceGuard();
+    if (!hasAppInstanceGuard) {
+      app.quit();
+      return;
+    }
 
-  app.on("second-instance", () => setWindowMode("expanded", { focus: true }));
-  nativeTheme.on("updated", sendSettingsChanged);
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+    loadStoreFromDisk();
+    refreshLaunchAtLoginSetting();
+    registerIpc();
+    createWindow();
+    createTray();
+    registerConfiguredShortcut();
+    startMousePolling();
+
+    nativeTheme.on("updated", sendSettingsChanged);
+    app.on("activate", () => {
+      if (!win || win.isDestroyed()) createWindow();
+    });
   });
 }
 
@@ -802,6 +887,10 @@ app.on("will-quit", () => {
   clearInterval(resizePollingTimer);
   clearTimeout(resizeSafetyTimer);
   clearTimeout(resizeSettingsTimer);
+  if (singleInstanceServer) {
+    singleInstanceServer.close();
+    singleInstanceServer = null;
+  }
   destroyTriggerDebugWindow();
   globalShortcut.unregisterAll();
 });
